@@ -3,9 +3,11 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-movies = pd.read_csv('movies.csv')
-ratings = pd.read_csv('ratings.csv')
+# --- Load Data ---
+movies = pd.read_csv("movies.csv")
+ratings = pd.read_csv("ratings.csv")
 
+# --- Content-Based Setup ---
 movies['genres'] = movies['genres'].str.replace('|', ' ')
 tfidf = TfidfVectorizer(stop_words='english')
 tfidf_matrix = tfidf.fit_transform(movies['genres'])
@@ -21,7 +23,7 @@ def content_recommend(title, n=5):
     movie_indices = [i[0] for i in sim_scores[1:n+1]]
     return movies['title'].iloc[movie_indices].tolist()
 
-
+# --- Collaborative Filtering Setup ---
 user_movie_matrix = ratings.pivot_table(index='userId', columns='movieId', values='rating').fillna(0)
 user_similarity = cosine_similarity(user_movie_matrix)
 user_similarity_df = pd.DataFrame(user_similarity, index=user_movie_matrix.index, columns=user_movie_matrix.index)
@@ -36,27 +38,39 @@ def cf_recommend(user_id, n=5):
     recommendations = avg_ratings.drop(watched).head(n).index
     return movies[movies['movieId'].isin(recommendations)]['title'].tolist()
 
-# --- Streamlit UI ---
-st.title(" Unified Movie Recommender System By Vishruth")
+# --- UI Design ---
+st.set_page_config(page_title="🎬 Movie Recommender", layout="centered")
 
-option = st.radio("Choose recommendation type:", ["Content-Based", "Collaborative Filtering"])
+st.markdown("""
+    <h1 style='text-align: center; color: #FF4B4B;'>🍿 Movie Recommender System</h1>
+    <p style='text-align: center; color: gray;'>Get personalized movie suggestions based on your preferences!</p>
+""", unsafe_allow_html=True)
 
-if option == "Content-Based":
+# --- Tabs for Type of Recommender ---
+tab1, tab2 = st.tabs(["🎯 Content-Based", "🤝 Collaborative Filtering"])
+
+with tab1:
+    st.subheader("🎬 Content-Based Recommender")
     movie_list = movies['title'].sort_values().tolist()
-    selected_movie = st.selectbox("Select a movie:", movie_list)
+    selected_movie = st.selectbox("Pick a movie you like:", movie_list)
 
-    if st.button("Recommend"):
+    if st.button("🔍 Recommend based on this movie"):
         recs = content_recommend(selected_movie)
-        st.subheader("Top 5 Recommendations:")
+        st.success(f"Top 5 movies similar to **{selected_movie}**:")
         for i, movie in enumerate(recs, 1):
-            st.write(f"{i}. {movie}")
+            st.write(f"**{i}. {movie}**")
 
-elif option == "Collaborative Filtering":
+with tab2:
+    st.subheader("👤 Collaborative Filtering Recommender")
     user_ids = sorted(ratings['userId'].unique())
-    selected_user = st.selectbox("Select a user ID:", user_ids)
+    selected_user = st.selectbox("Select a user ID (based on ratings data):", user_ids)
 
-    if st.button("Recommend"):
+    if st.button("🎯 Recommend for this user"):
         recs = cf_recommend(int(selected_user))
-        st.subheader("Top 5 Recommendations:")
+        st.success(f"Top 5 movies for **User ID {selected_user}**:")
         for i, movie in enumerate(recs, 1):
-            st.write(f"{i}. {movie}")
+            st.write(f"**{i}. {movie}**")
+
+# --- Footer ---
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 12px;'>Made By Vishruth</p>", unsafe_allow_html=True)
